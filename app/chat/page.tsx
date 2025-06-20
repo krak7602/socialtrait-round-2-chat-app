@@ -9,11 +9,20 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Send, Bot, User, Database } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 export default function ChatPage() {
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat()
   const [isInitialized, setIsInitialized] = useState(false)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [messages, isLoading])
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,95 +65,100 @@ export default function ChatPage() {
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="flex-1 flex flex-col p-0">
-            <ScrollArea className="flex-1 p-4">
-              {messages.length === 0 && !isInitialized && (
-                <div className="space-y-4">
-                  <div className="text-center text-muted-foreground mb-6">
-                    <Bot className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>Start by asking a question about the influencer data!</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-medium text-sm">Example questions:</p>
-                    {exampleQuestions.map((question, index) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-start text-left h-auto p-3 whitespace-normal"
-                        onClick={() => {
-                          handleInputChange({ target: { value: question } } as any)
-                        }}
-                      >
-                        {question}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`flex gap-3 max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-                    >
-                      <div className="flex-shrink-0">
-                        {message.role === "user" ? (
-                          <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4" />
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center">
-                            <Bot className="h-4 w-4" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div
-                        className={`rounded-lg p-3 ${
-                          message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-                        }`}
-                      >
-                        <div className="whitespace-pre-wrap">
-                          {message.parts.map((part, i) => {
-                            switch (part.type) {
-                              case "text":
-                                return <span key={`${message.id}-${i}`}>{part.text}</span>
-                              default:
-                                return null
-                            }
-                          })}
-                        </div>
-                      </div>
+          <CardContent className="flex-1 flex flex-col p-0 relative">
+            <div className="flex-1 overflow-hidden">
+              <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
+                {messages.length === 0 && !isInitialized && (
+                  <div className="space-y-4">
+                    <div className="text-center text-muted-foreground mb-6">
+                      <Bot className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>Start by asking a question about the influencer data!</p>
                     </div>
-                  </div>
-                ))}
 
-                {isLoading && (
-                  <div className="flex gap-3 justify-start">
-                    <div className="flex gap-3 max-w-[80%]">
-                      <div className="w-8 h-8 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center">
-                        <Bot className="h-4 w-4" />
-                      </div>
-                      <div className="bg-muted rounded-lg p-3">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                          <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                          <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
-                        </div>
-                      </div>
+                    <div className="space-y-2">
+                      <p className="font-medium text-sm">Example questions:</p>
+                      {exampleQuestions.map((question, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start text-left h-auto p-3 whitespace-normal"
+                          onClick={() => {
+                            handleInputChange({ target: { value: question } } as any)
+                          }}
+                        >
+                          {question}
+                        </Button>
+                      ))}
                     </div>
                   </div>
                 )}
-              </div>
-            </ScrollArea>
 
-            <div className="border-t p-4">
+                <div className="space-y-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`flex gap-3 max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                      >
+                        <div className="flex-shrink-0">
+                          {message.role === "user" ? (
+                            <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
+                              <User className="h-4 w-4" />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center">
+                              <Bot className="h-4 w-4" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          className={`rounded-lg p-3 ${
+                            message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                          }`}
+                        >
+                          <div className="whitespace-pre-wrap">
+                            {message.parts.map((part, i) => {
+                              switch (part.type) {
+                                case "text":
+                                  return <span key={`${message.id}-${i}`}>{part.text}</span>
+                                default:
+                                  return null
+                              }
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {isLoading && (
+                    <div className="flex gap-3 justify-start">
+                      <div className="flex gap-3 max-w-[80%]">
+                        <div className="w-8 h-8 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center">
+                          <Bot className="h-4 w-4" />
+                        </div>
+                        <div className="bg-muted rounded-lg p-3">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                            <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                            <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scroll anchor for auto-scrolling */}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+            </div>
+
+            <div className="border-t bg-background p-4 flex-shrink-0">
               <form onSubmit={handleFormSubmit} className="flex gap-2">
                 <Input
                   value={input}

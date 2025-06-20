@@ -25,11 +25,10 @@ async function getInfluencerData(): Promise<InfluencerData[]> {
 }
 
 function createSystemPrompt(influencerData: InfluencerData[]): string {
-  const dataPreview = influencerData
-    .slice(0, 5)
+  const allInfluencerData = influencerData
     .map(
       (influencer) =>
-        `Username: ${influencer.Username}, Full Name: ${influencer["Full Name"]}, Followers: ${influencer["Follower Count"]}, Engagement Rate: ${influencer["Engagement Rate"]}`,
+        `Username: ${influencer.Username}, Full Name: ${influencer["Full Name"]}, Followers: ${influencer["Follower Count"]}, Engagement Rate: ${influencer["Engagement Rate"]}, Verified: ${influencer.Verified}, City: ${influencer["Creator City"] || "N/A"}, Country: ${influencer["Creator Country"] || "N/A"}, Gender: ${influencer.Gender || "N/A"}, Language: ${influencer.Language || "N/A"}`,
     )
     .join("\n")
 
@@ -53,8 +52,8 @@ DATASET SCHEMA:
 - Profile Url: Instagram profile URL
 - Image url: Profile image URL
 
-SAMPLE DATA:
-${dataPreview}
+COMPLETE DATASET:
+${allInfluencerData}
 
 INSTRUCTIONS:
 1. ONLY answer questions related to this influencer dataset
@@ -62,6 +61,7 @@ INSTRUCTIONS:
 3. Provide specific data-driven answers when possible
 4. You can perform analysis, comparisons, and provide insights about the influencers
 5. Be helpful and informative about social media marketing and influencer trends based on this data
+6. You have access to the complete dataset above, so you can provide precise answers about any influencer in the data
 
 If a question is not related to the influencer data, respond with: "I can only help with questions about the influencer dataset. Please ask me about influencers, their follower counts, engagement rates, or other social media related topics from the data."`
 }
