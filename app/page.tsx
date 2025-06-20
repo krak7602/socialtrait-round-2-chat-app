@@ -1,0 +1,61 @@
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { MessageCircle, Database, Zap } from "lucide-react"
+import Link from "next/link"
+
+export default function Page() {
+  return (
+    <div className="min-h-svh">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      <div className="flex min-h-svh items-center justify-center p-4">
+        <div className="max-w-2xl w-full space-y-8">
+          <div className="text-center space-y-4">
+            <h1 className="text-4xl font-bold">Influencer Data Chat</h1>
+            <p className="text-xl text-muted-foreground">AI-powered insights from influencer data using ChatGPT</p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Dataset Overview
+              </CardTitle>
+              <CardDescription>
+                Comprehensive influencer data including usernames, follower counts, engagement rates, and more
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm">Interactive Chat Interface</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm">Real-time Streaming</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Database className="h-4 w-4 text-green-500" />
+                  <span className="text-sm">Data-driven Insights</span>
+                </div>
+              </div>
+
+              <Link href="/chat">
+                <Button size="lg" className="w-full">
+                  Start Chatting with Data
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <div className="text-center text-sm text-muted-foreground">
+            Ask questions like: "Who are the top influencers?" or "What's the average engagement rate?"
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
