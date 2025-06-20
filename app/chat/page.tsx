@@ -1,39 +1,71 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useChat } from "@ai-sdk/react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Send, Bot, User, Database } from "lucide-react"
-import { useState, useEffect, useRef } from "react"
+import { useChat } from "@ai-sdk/react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { ArrowUp, Bot, User, Database } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 
 export default function ChatPage() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat()
-  const [isInitialized, setIsInitialized] = useState(false)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [initialMessages, setInitialMessages] = useState<any[] | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedMessages = localStorage.getItem("chatMessages");
+      if (savedMessages) {
+        try {
+          setInitialMessages(JSON.parse(savedMessages));
+        } catch (e) {
+          console.error("Failed to parse saved messages:", e);
+          setInitialMessages([]);
+        }
+      } else {
+        setInitialMessages([]);
+      }
+    }
+  }, []);
+
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading,
+    setMessages,
+  } = useChat({
+    initialMessages: initialMessages,
+  });
+  const [isInitialized, setIsInitialized] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isLoading])
+    if (initialMessages !== undefined) {
+      localStorage.setItem("chatMessages", JSON.stringify(messages));
+    }
+  }, [messages, initialMessages]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim()) return
+    e.preventDefault();
+    if (!input.trim()) return;
 
     if (!isInitialized) {
-      setIsInitialized(true)
+      setIsInitialized(true);
     }
 
-    handleSubmit(e)
-  }
+    handleSubmit(e);
+  };
 
   const exampleQuestions = [
     "How many influencers are in the dataset?",
@@ -41,23 +73,26 @@ export default function ChatPage() {
     "What's the average engagement rate across all influencers?",
     "Show me verified influencers with over 1 million followers",
     "Which influencers have the highest engagement rates?",
-  ]
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="absolute top-4 right-4">
+    <div className="h-screen bg-background overflow-hidden">
+      <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>
 
-      <div className="container mx-auto max-w-4xl p-4">
+      <div className="container mx-auto w-full h-full p-4 flex flex-col">
         <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold mb-2">Influencer Data Chat Assistant</h1>
+          <h1 className="text-3xl font-bold mb-2">
+            Influencer Data Chat Assistant
+          </h1>
           <p className="text-muted-foreground">
-            Ask questions about the influencer dataset and get AI-powered insights
+            Ask questions about the influencer dataset and get AI-powered
+            insights
           </p>
         </div>
 
-        <Card className="h-[600px] flex flex-col">
+        <Card className="flex-1 flex flex-col border-none shadow-none overflow-hidden">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2">
               <Database className="h-5 w-5" />
@@ -65,14 +100,16 @@ export default function ChatPage() {
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="flex-1 flex flex-col p-0 relative">
+          <CardContent className="flex-1 flex flex-col p-0 relative overflow-hidden">
             <div className="flex-1 overflow-hidden">
               <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
                 {messages.length === 0 && !isInitialized && (
                   <div className="space-y-4">
                     <div className="text-center text-muted-foreground mb-6">
                       <Bot className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>Start by asking a question about the influencer data!</p>
+                      <p>
+                        Start by asking a question about the influencer data!
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -84,7 +121,13 @@ export default function ChatPage() {
                           size="sm"
                           className="w-full justify-start text-left h-auto p-3 whitespace-normal"
                           onClick={() => {
-                            handleInputChange({ target: { value: question } } as any)
+                            handleInputChange({
+                              target: { value: question },
+                            } as any);
+                            setMessages([]); // Clear messages when starting a new chat with example question
+                            if (typeof window !== "undefined") {
+                              localStorage.removeItem("chatMessages");
+                            }
                           }}
                         >
                           {question}
@@ -117,16 +160,22 @@ export default function ChatPage() {
 
                         <div
                           className={`rounded-lg p-3 ${
-                            message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                            message.role === "user"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
                           }`}
                         >
                           <div className="whitespace-pre-wrap">
                             {message.parts.map((part, i) => {
                               switch (part.type) {
                                 case "text":
-                                  return <span key={`${message.id}-${i}`}>{part.text}</span>
+                                  return (
+                                    <span key={`${message.id}-${i}`}>
+                                      {part.text}
+                                    </span>
+                                  );
                                 default:
-                                  return null
+                                  return null;
                               }
                             })}
                           </div>
@@ -158,23 +207,50 @@ export default function ChatPage() {
               </ScrollArea>
             </div>
 
-            <div className="border-t bg-background p-4 flex-shrink-0">
-              <form onSubmit={handleFormSubmit} className="flex gap-2">
-                <Input
-                  value={input}
-                  onChange={handleInputChange}
-                  placeholder="Ask about influencers, engagement rates, follower counts..."
-                  disabled={isLoading}
-                  className="flex-1"
-                />
-                <Button type="submit" disabled={isLoading || !input.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
+            <div className="bg-background p-4 flex-shrink-0">
+              <form onSubmit={handleFormSubmit} className="relative">
+                <div className="relative border border-border  rounded-3xl bg-background shadow-sm transition-shadow">
+                  <Textarea
+                    value={input}
+                    onChange={handleInputChange}
+                    placeholder="Ask about influencers, engagement rates, follower counts..."
+                    disabled={isLoading}
+                    className="w-full min-h-[60px] max-h-[200px] resize-none border-0 bg-transparent px-4 py-3 pr-12 placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus:border-0 focus-visible:outline-none focus-visible:ring-0 focus:!outline-none focus:!ring-0 focus:!border-none"
+                    style={{
+                      fontSize: "18px",
+                      lineHeight: "1.5",
+                      outline: "none",
+                      border: "none",
+                      boxShadow: "none",
+                    }}
+                    rows={1}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = "auto";
+                      target.style.height =
+                        Math.min(target.scrollHeight, 200) + "px";
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleFormSubmit(e as any);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isLoading || !input.trim()}
+                    size="sm"
+                    className="absolute right-2 bottom-2 h-8 w-8 rounded-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed p-0"
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                </div>
               </form>
             </div>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
+  );
 }
