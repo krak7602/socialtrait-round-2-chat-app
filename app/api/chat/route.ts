@@ -1,6 +1,8 @@
 import { openai } from "@ai-sdk/openai"
 import { streamText } from "ai"
 import { parseCSV, type InfluencerData } from "@/lib/csv-parser"
+import { readFile } from "fs/promises"
+import { join } from "path"
 
 export const maxDuration = 30
 
@@ -12,8 +14,8 @@ async function getInfluencerData(): Promise<InfluencerData[]> {
   }
 
   try {
-    const response = await fetch("/data/influencer-list-st.csv")
-    const csvText = await response.text()
+    const filePath = join(process.cwd(), "public", "influencer-list-st.csv")
+    const csvText = await readFile(filePath, "utf-8")
     cachedInfluencerData = parseCSV(csvText)
     return cachedInfluencerData
   } catch (error) {
@@ -66,7 +68,13 @@ If a question is not related to the influencer data, respond with: "I can only h
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json()
+    // Add validation for request body
+    const body = await req.json()
+    const { messages } = body
+
+    if (!messages || !Array.isArray(messages)) {
+      return new Response("Invalid request: messages array required", { status: 400 })
+    }
 
     const influencerData = await getInfluencerData()
     const systemPrompt = createSystemPrompt(influencerData)
@@ -82,6 +90,12 @@ export async function POST(req: Request) {
     return result.toDataStreamResponse()
   } catch (error) {
     console.error("Error in chat API:", error)
+    
+    // More specific error handling
+    if (error instanceof SyntaxError) {
+      return new Response("Invalid JSON in request body", { status: 400 })
+    }
+    
     return new Response("Internal Server Error", { status: 500 })
   }
 }
