@@ -43,10 +43,20 @@ export default function Page() {
                 </div>
               </div>
 
-              <div className="pt-2">
-                <Link href="/chat">
+              <div className="flex gap-2">
+                <Link href="/chat" className="flex-1">
                   <Button size="lg" className="w-full">
                     Start Chatting with Data
+                  </Button>
+                </Link>
+                <Link href="/upload">
+                  <Button size="lg" variant="outline">
+                    Upload Data
+                  </Button>
+                </Link>
+                <Link href="/settings">
+                  <Button size="lg" variant="outline">
+                    Configure Models
                   </Button>
                 </Link>
               </div>

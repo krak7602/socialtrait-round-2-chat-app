@@ -9,6 +9,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "latest",
+    "@ai-sdk/google": "latest",
     "@ai-sdk/openai": "latest",
     "@ai-sdk/react": "latest",
     "@hookform/resolvers": "^3.9.1",
@@ -55,6 +57,7 @@
     "react": "^19",
     "react-day-picker": "latest",
     "react-dom": "^19",
+    "react-dropzone": "latest",
     "react-hook-form": "latest",
     "react-resizable-panels": "latest",
     "recharts": "latest",

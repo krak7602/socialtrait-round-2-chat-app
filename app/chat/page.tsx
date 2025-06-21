@@ -1,71 +1,175 @@
-"use client";
+"use client"
 
-import type React from "react";
+import type React from "react"
 
-import { useChat } from "@ai-sdk/react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { ArrowUp, Bot, User, Database } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useChat } from "@ai-sdk/react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { ArrowUp, Bot, User, Database, Settings, Trash2, Upload } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import Link from "next/link"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+// Add these interfaces at the top
+interface ModelConfig {
+  id: string
+  name: string
+  provider: string
+}
+
+interface ProviderConfig {
+  name: string
+  apiKey: string
+  models: ModelConfig[]
+}
+
+// Update the component to include model selection
 export default function ChatPage() {
-  const [initialMessages, setInitialMessages] = useState<any[] | undefined>(
-    undefined,
-  );
+  const [initialMessages, setInitialMessages] = useState<any[] | undefined>(undefined)
+  const [selectedModel, setSelectedModel] = useState<string>("")
+  const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedMessages = localStorage.getItem("chatMessages");
+      const savedMessages = localStorage.getItem("chatMessages")
+      const savedSelectedModel = localStorage.getItem("selectedModel")
+      const savedProviders = localStorage.getItem("aiProviders")
+
       if (savedMessages) {
         try {
-          setInitialMessages(JSON.parse(savedMessages));
+          setInitialMessages(JSON.parse(savedMessages))
         } catch (e) {
-          console.error("Failed to parse saved messages:", e);
-          setInitialMessages([]);
+          console.error("Failed to parse saved messages:", e)
+          setInitialMessages([])
         }
       } else {
-        setInitialMessages([]);
+        setInitialMessages([])
+      }
+
+      if (savedSelectedModel) {
+        setSelectedModel(savedSelectedModel)
+      }
+
+      // Load available models
+      if (savedProviders) {
+        try {
+          const providers: Record<string, ProviderConfig> = JSON.parse(savedProviders)
+          const models: ModelConfig[] = []
+          Object.values(providers).forEach((provider) => {
+            if (provider.apiKey?.trim()) {
+              models.push(...provider.models)
+            }
+          })
+          setAvailableModels(models)
+        } catch (e) {
+          console.error("Failed to parse saved providers:", e)
+        }
       }
     }
-  }, []);
+  }, [])
 
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    setMessages,
-  } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     initialMessages: initialMessages,
-  });
-  const [isInitialized, setIsInitialized] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+    body: {
+      selectedModel: selectedModel,
+      uploadedCsvData: typeof window !== "undefined" ? localStorage.getItem("uploadedCsvData") : null,
+    },
+  })
+
+  // Add clear chat function
+  const clearChat = () => {
+    setMessages([])
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("chatMessages")
+    }
+  }
+
+  // Update model selection
+  const handleModelChange = (modelId: string) => {
+    setSelectedModel(modelId)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("selectedModel", modelId)
+    }
+  }
+
+  // Update the header section to include model selector and clear button
+  const headerSection = (
+    <CardHeader className="pb-4">
+      <div className="flex items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <Database className="h-5 w-5" />
+          Chat with {typeof window !== "undefined" && localStorage.getItem("uploadedCsvData") ? "Custom" : "Influencer"}{" "}
+          Data
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          {availableModels.length > 0 && (
+            <Select value={selectedModel} onValueChange={handleModelChange}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableModels.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button variant="outline" size="icon" onClick={clearChat} title="Clear chat">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+          <Link href="/upload">
+            <Button variant="outline" size="icon" title="Upload Data">
+              <Upload className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/settings">
+            <Button variant="outline" size="icon" title="Settings">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+      {availableModels.length === 0 && (
+        <div className="text-sm text-muted-foreground">
+          No models configured.{" "}
+          <Link href="/settings" className="underline">
+            Configure API keys
+          </Link>{" "}
+          to enable AI chat.
+        </div>
+      )}
+    </CardHeader>
+  )
+
+  const [isInitialized, setIsInitialized] = useState(false)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
     }
     if (initialMessages !== undefined) {
-      localStorage.setItem("chatMessages", JSON.stringify(messages));
+      localStorage.setItem("chatMessages", JSON.stringify(messages))
     }
-  }, [messages, initialMessages]);
+  }, [messages, initialMessages])
 
   const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+    e.preventDefault()
+    if (!input.trim()) return
 
     if (!isInitialized) {
-      setIsInitialized(true);
+      setIsInitialized(true)
     }
 
-    handleSubmit(e);
-  };
+    handleSubmit(e)
+  }
 
   const exampleQuestions = [
     "How many influencers are in the dataset?",
@@ -73,7 +177,7 @@ export default function ChatPage() {
     "What's the average engagement rate across all influencers?",
     "Show me verified influencers with over 1 million followers",
     "Which influencers have the highest engagement rates?",
-  ];
+  ]
 
   return (
     <div className="h-screen bg-background overflow-hidden">
@@ -83,22 +187,14 @@ export default function ChatPage() {
 
       <div className="container mx-auto w-full h-full p-4 flex flex-col">
         <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold mb-2">
-            Influencer Data Chat Assistant
-          </h1>
+          <h1 className="text-3xl font-bold mb-2">Influencer Data Chat Assistant</h1>
           <p className="text-muted-foreground">
-            Ask questions about the influencer dataset and get AI-powered
-            insights
+            Ask questions about the influencer dataset and get AI-powered insights
           </p>
         </div>
 
         <Card className="flex-1 flex flex-col border-none shadow-none overflow-hidden">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Chat with Influencer Data
-            </CardTitle>
-          </CardHeader>
+          {headerSection}
 
           <CardContent className="flex-1 flex flex-col p-0 relative overflow-hidden">
             <div className="flex-1 overflow-hidden">
@@ -107,9 +203,7 @@ export default function ChatPage() {
                   <div className="space-y-4">
                     <div className="text-center text-muted-foreground mb-6">
                       <Bot className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>
-                        Start by asking a question about the influencer data!
-                      </p>
+                      <p>Start by asking a question about the influencer data!</p>
                     </div>
 
                     <div className="space-y-2">
@@ -123,10 +217,10 @@ export default function ChatPage() {
                           onClick={() => {
                             handleInputChange({
                               target: { value: question },
-                            } as any);
-                            setMessages([]); // Clear messages when starting a new chat with example question
+                            } as any)
+                            setMessages([]) // Clear messages when starting a new chat with example question
                             if (typeof window !== "undefined") {
-                              localStorage.removeItem("chatMessages");
+                              localStorage.removeItem("chatMessages")
                             }
                           }}
                         >
@@ -160,22 +254,16 @@ export default function ChatPage() {
 
                         <div
                           className={`rounded-lg p-3 ${
-                            message.role === "user"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted"
+                            message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                           }`}
                         >
                           <div className="whitespace-pre-wrap">
                             {message.parts.map((part, i) => {
                               switch (part.type) {
                                 case "text":
-                                  return (
-                                    <span key={`${message.id}-${i}`}>
-                                      {part.text}
-                                    </span>
-                                  );
+                                  return <span key={`${message.id}-${i}`}>{part.text}</span>
                                 default:
-                                  return null;
+                                  return null
                               }
                             })}
                           </div>
@@ -225,15 +313,14 @@ export default function ChatPage() {
                     }}
                     rows={1}
                     onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = "auto";
-                      target.style.height =
-                        Math.min(target.scrollHeight, 200) + "px";
+                      const target = e.target as HTMLTextAreaElement
+                      target.style.height = "auto"
+                      target.style.height = Math.min(target.scrollHeight, 200) + "px"
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleFormSubmit(e as any);
+                        e.preventDefault()
+                        handleFormSubmit(e as any)
                       }
                     }}
                   />
@@ -252,5 +339,5 @@ export default function ChatPage() {
         </Card>
       </div>
     </div>
-  );
+  )
 }
