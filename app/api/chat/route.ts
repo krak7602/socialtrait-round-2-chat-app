@@ -1,8 +1,8 @@
 import { streamText } from "ai"
 import { parseCSV } from "@/lib/csv-parser"
-import { openai } from "@ai-sdk/openai"
-import { google } from "@ai-sdk/google"
-import { anthropic } from "@ai-sdk/anthropic"
+import { createOpenAI } from "@ai-sdk/openai"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
+import { createAnthropic } from "@ai-sdk/anthropic"
 
 export const maxDuration = 30
 
@@ -24,49 +24,80 @@ function createSystemPrompt(data: any[]): string {
     return "You are an AI assistant, but no data is currently available to analyze."
   }
 
-  // Get the first few rows to understand the structure
-  const sampleData = data.slice(0, 3)
-  const headers = Object.keys(sampleData[0] || {})
-
-  const dataPreview = data
-    .slice(0, 10) // Show first 10 rows as preview
-    .map((row) => headers.map((header) => `${header}: ${row[header] || "N/A"}`).join(", "))
+  // Get the headers from the first row
+  const headers = Object.keys(data[0] || {})
+  
+  // Convert the entire dataset to a structured format
+  const fullDataset = data
+    .map((row, index) => {
+      const rowData = headers.map((header) => `${header}: ${row[header] || "N/A"}`).join(", ")
+      return `Row ${index + 1}: ${rowData}`
+    })
     .join("\n")
+
+  // Calculate approximate token count (rough estimation: 1 token ≈ 4 characters)
+  const approximateTokens = fullDataset.length / 4
+  const maxRecommendedTokens = 150000 // Conservative limit to leave room for conversation
+
+  let datasetSection: string
+  if (approximateTokens > maxRecommendedTokens) {
+    // If dataset is too large, provide summary statistics and warn about truncation
+    const truncatedData = data.slice(0, Math.floor(maxRecommendedTokens * 4 / (fullDataset.length / data.length)))
+    const truncatedDataset = truncatedData
+      .map((row, index) => {
+        const rowData = headers.map((header) => `${header}: ${row[header] || "N/A"}`).join(", ")
+        return `Row ${index + 1}: ${rowData}`
+      })
+      .join("\n")
+    
+    datasetSection = `DATASET (showing ${truncatedData.length} of ${data.length} rows due to size limits):
+${truncatedDataset}
+
+NOTE: This dataset contains ${data.length} total rows, but only the first ${truncatedData.length} rows are shown above due to context length limitations. However, you can still provide analysis and insights about the overall dataset structure and answer questions about patterns that would be visible in the full dataset.`
+  } else {
+    datasetSection = `COMPLETE DATASET (all ${data.length} entries):
+${fullDataset}`
+  }
 
   return `You are an AI assistant that helps users analyze and query data from their uploaded dataset. You have access to a dataset containing ${data.length} entries.
 
 DATASET STRUCTURE:
 Available columns: ${headers.join(", ")}
 
-SAMPLE DATA (first 10 entries):
-${dataPreview}
+${datasetSection}
 
 INSTRUCTIONS:
 1. Answer questions related to this specific uploaded dataset
-2. Provide data-driven insights and analysis
-3. You can perform calculations, comparisons, and provide summaries
-4. Be helpful and informative about the data patterns and trends
+2. Provide data-driven insights and analysis based on the complete dataset
+3. You can perform calculations, comparisons, and provide summaries across all data points
+4. Be helpful and informative about the data patterns and trends you can observe
 5. If asked about data not present in the dataset, politely explain what data is available
 6. Present your answers in a clear, easy-to-understand format
 7. Focus on the user's specific data and provide relevant insights
+8. When providing statistics or analysis, base it on the complete dataset of ${data.length} entries
+9. The answers SHOULD have a conversational tone and be easy to understand.
+10. DO NOT answer questions that are not related to the dataset. Respond that you are not able to answer that question, which is not related to the dataset and DO NOT give any other information.
 
-The complete dataset contains ${data.length} entries with the columns listed above. You can analyze any aspect of this data to help the user understand patterns, trends, and insights from their uploaded information.`
+You have access to the ${data.length > (maxRecommendedTokens * 4 / 100) ? 'structure and sample of the' : 'complete'} dataset and can analyze patterns, calculate statistics, identify trends, and answer specific questions about the data.`
 }
 
 function getModelInstance(modelId: string, providers: any) {
   // Extract provider from model ID and get API key
-  if (modelId.startsWith("gpt-")) {
+  if (modelId.startsWith("gpt-") || modelId === "o3-pro" || modelId === "o3" || modelId === "gpt-4.1") {
     const apiKey = providers?.openai?.apiKey
     if (!apiKey) throw new Error("OpenAI API key not provided. Please configure it in settings.")
-    return openai(modelId, { apiKey })
+    const openai = createOpenAI({ apiKey })
+    return openai(modelId)
   } else if (modelId.startsWith("gemini-") || modelId.includes("gemini")) {
     const apiKey = providers?.google?.apiKey
     if (!apiKey) throw new Error("Google API key not provided. Please configure it in settings.")
-    return google(modelId, { apiKey })
+    const google = createGoogleGenerativeAI({ apiKey })
+    return google(modelId)
   } else if (modelId.startsWith("claude-")) {
     const apiKey = providers?.anthropic?.apiKey
     if (!apiKey) throw new Error("Anthropic API key not provided. Please configure it in settings.")
-    return anthropic(modelId, { apiKey })
+    const anthropic = createAnthropic({ apiKey })
+    return anthropic(modelId)
   } else {
     throw new Error("Invalid model selected. Please select a valid model from the settings.")
   }

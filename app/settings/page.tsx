@@ -1,26 +1,33 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { ArrowLeft, Save, Eye, EyeOff, AlertCircle, ExternalLink } from "lucide-react"
-import Link from "next/link"
-import { toast } from "sonner"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  ArrowLeft,
+  Save,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  ExternalLink,
+} from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ModelConfig {
-  id: string
-  name: string
-  provider: string
+  id: string;
+  name: string;
+  provider: string;
 }
 
 interface ProviderConfig {
-  name: string
-  apiKey: string
-  models: ModelConfig[]
+  name: string;
+  apiKey: string;
+  models: ModelConfig[];
 }
 
 const AVAILABLE_PROVIDERS: Record<string, ProviderConfig> = {
@@ -47,45 +54,58 @@ const AVAILABLE_PROVIDERS: Record<string, ProviderConfig> = {
     name: "Anthropic",
     apiKey: "",
     models: [
-      { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", provider: "anthropic" },
-      { id: "claude-3-opus-20240229", name: "Claude 3 Opus", provider: "anthropic" },
-      { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku", provider: "anthropic" },
+      {
+        id: "claude-3-5-sonnet-20241022",
+        name: "Claude 3.5 Sonnet",
+        provider: "anthropic",
+      },
+      {
+        id: "claude-3-opus-20240229",
+        name: "Claude 3 Opus",
+        provider: "anthropic",
+      },
+      {
+        id: "claude-3-haiku-20240307",
+        name: "Claude 3 Haiku",
+        provider: "anthropic",
+      },
     ],
   },
-}
+};
 
 const API_KEY_LINKS = {
   openai: "https://platform.openai.com/api-keys",
   google: "https://aistudio.google.com/app/apikey",
   anthropic: "https://console.anthropic.com/settings/keys",
-}
+};
 
 export default function SettingsPage() {
-  const [providers, setProviders] = useState<Record<string, ProviderConfig>>(AVAILABLE_PROVIDERS)
-  const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({})
-  const [selectedModel, setSelectedModel] = useState<string>("")
+  const [providers, setProviders] =
+    useState<Record<string, ProviderConfig>>(AVAILABLE_PROVIDERS);
+  const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
+  const [selectedModel, setSelectedModel] = useState<string>("");
 
   useEffect(() => {
     // Load saved configuration
-    const savedProviders = localStorage.getItem("aiProviders")
-    const savedSelectedModel = localStorage.getItem("selectedModel")
+    const savedProviders = localStorage.getItem("aiProviders");
+    const savedSelectedModel = localStorage.getItem("selectedModel");
 
     if (savedProviders) {
       try {
-        const parsed = JSON.parse(savedProviders)
-        setProviders({ ...AVAILABLE_PROVIDERS, ...parsed })
+        const parsed = JSON.parse(savedProviders);
+        setProviders({ ...AVAILABLE_PROVIDERS, ...parsed });
       } catch (e) {
-        console.error("Failed to parse saved providers:", e)
+        console.error("Failed to parse saved providers:", e);
       }
     }
 
     if (savedSelectedModel) {
-      setSelectedModel(savedSelectedModel)
+      setSelectedModel(savedSelectedModel);
     } else {
       // Set default to GPT-4o if available
-      setSelectedModel("gpt-4o")
+      setSelectedModel("gpt-4o");
     }
-  }, [])
+  }, []);
 
   const handleApiKeyChange = (provider: string, apiKey: string) => {
     setProviders((prev) => ({
@@ -94,35 +114,35 @@ export default function SettingsPage() {
         ...prev[provider],
         apiKey,
       },
-    }))
-  }
+    }));
+  };
 
   const toggleApiKeyVisibility = (provider: string) => {
     setShowApiKeys((prev) => ({
       ...prev,
       [provider]: !prev[provider],
-    }))
-  }
+    }));
+  };
 
   const handleSave = () => {
     // Save to localStorage
-    localStorage.setItem("aiProviders", JSON.stringify(providers))
-    localStorage.setItem("selectedModel", selectedModel)
+    localStorage.setItem("aiProviders", JSON.stringify(providers));
+    localStorage.setItem("selectedModel", selectedModel);
 
-    toast.success("Settings saved successfully!")
-  }
+    toast.success("Settings saved successfully!");
+  };
 
   const getAvailableModels = () => {
-    const models: ModelConfig[] = []
+    const models: ModelConfig[] = [];
     Object.values(providers).forEach((provider) => {
       if (provider.apiKey.trim()) {
-        models.push(...provider.models)
+        models.push(...provider.models);
       }
-    })
-    return models
-  }
+    });
+    return models;
+  };
 
-  const availableModels = getAvailableModels()
+  const availableModels = getAvailableModels();
 
   return (
     <div className="min-h-screen bg-background">
@@ -145,9 +165,10 @@ export default function SettingsPage() {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Important:</strong> You need to provide your own API keys to use the AI models. Your API keys are
-              stored locally in your browser and are never sent to our servers except when making API calls to the
-              respective providers.
+              <strong>Important:</strong> You need to provide your own API keys
+              to use the AI models. Your API keys are stored locally in your
+              browser and are never sent to our servers except when making API
+              calls to the respective providers.
             </AlertDescription>
           </Alert>
 
@@ -160,11 +181,16 @@ export default function SettingsPage() {
               {Object.entries(providers).map(([providerId, provider]) => (
                 <div key={providerId} className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor={`${providerId}-key`} className="text-base font-medium">
+                    <Label
+                      htmlFor={`${providerId}-key`}
+                      className="text-base font-medium"
+                    >
                       {provider.name} API Key
                     </Label>
                     <Link
-                      href={API_KEY_LINKS[providerId as keyof typeof API_KEY_LINKS]}
+                      href={
+                        API_KEY_LINKS[providerId as keyof typeof API_KEY_LINKS]
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
@@ -178,7 +204,9 @@ export default function SettingsPage() {
                         id={`${providerId}-key`}
                         type={showApiKeys[providerId] ? "text" : "password"}
                         value={provider.apiKey}
-                        onChange={(e) => handleApiKeyChange(providerId, e.target.value)}
+                        onChange={(e) =>
+                          handleApiKeyChange(providerId, e.target.value)
+                        }
                         placeholder={`Enter your ${provider.name} API key`}
                         className="pr-10"
                       />
@@ -189,16 +217,23 @@ export default function SettingsPage() {
                         className="absolute right-0 top-0 h-full px-3"
                         onClick={() => toggleApiKeyVisibility(providerId)}
                       >
-                        {showApiKeys[providerId] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showApiKeys[providerId] ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    Available models: {provider.models.map((m) => m.name).join(", ")}
+                    Available models:{" "}
+                    {provider.models.map((m) => m.name).join(", ")}
                     {provider.apiKey.trim() ? (
                       <span className="text-green-600 ml-2">✓ Configured</span>
                     ) : (
-                      <span className="text-orange-600 ml-2">⚠ API key required</span>
+                      <span className="text-orange-600 ml-2">
+                        ⚠ API key required
+                      </span>
                     )}
                   </div>
                 </div>
@@ -224,8 +259,13 @@ export default function SettingsPage() {
                   {Object.values(providers).map((provider) => (
                     <optgroup key={provider.name} label={provider.name}>
                       {provider.models.map((model) => (
-                        <option key={model.id} value={model.id} disabled={!provider.apiKey.trim()}>
-                          {model.name} {!provider.apiKey.trim() && "(API key required)"}
+                        <option
+                          key={model.id}
+                          value={model.id}
+                          disabled={!provider.apiKey.trim()}
+                        >
+                          {model.name}{" "}
+                          {!provider.apiKey.trim() && "(API key required)"}
                         </option>
                       ))}
                     </optgroup>
@@ -233,7 +273,8 @@ export default function SettingsPage() {
                 </select>
                 {availableModels.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    Please configure at least one API key to enable model selection.
+                    Please configure at least one API key to enable model
+                    selection.
                   </p>
                 )}
               </div>
@@ -242,7 +283,10 @@ export default function SettingsPage() {
 
           {/* Save Button */}
           <div className="flex justify-end">
-            <Button onClick={handleSave} className="flex items-center gap-2">
+            <Button
+              onClick={handleSave}
+              className="flex items-center gap-2 mr-5"
+            >
               <Save className="h-4 w-4" />
               Save Settings
             </Button>
@@ -259,7 +303,11 @@ export default function SettingsPage() {
                 <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                   <li>
                     Visit{" "}
-                    <Link href="https://platform.openai.com/api-keys" target="_blank" className="underline">
+                    <Link
+                      href="https://platform.openai.com/api-keys"
+                      target="_blank"
+                      className="underline"
+                    >
                       platform.openai.com/api-keys
                     </Link>
                   </li>
@@ -274,7 +322,11 @@ export default function SettingsPage() {
                 <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                   <li>
                     Visit{" "}
-                    <Link href="https://aistudio.google.com/app/apikey" target="_blank" className="underline">
+                    <Link
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      className="underline"
+                    >
                       aistudio.google.com/app/apikey
                     </Link>
                   </li>
@@ -289,7 +341,11 @@ export default function SettingsPage() {
                 <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                   <li>
                     Visit{" "}
-                    <Link href="https://console.anthropic.com/settings/keys" target="_blank" className="underline">
+                    <Link
+                      href="https://console.anthropic.com/settings/keys"
+                      target="_blank"
+                      className="underline"
+                    >
                       console.anthropic.com/settings/keys
                     </Link>
                   </li>
@@ -303,5 +359,5 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
