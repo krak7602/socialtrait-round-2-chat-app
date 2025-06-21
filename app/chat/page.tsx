@@ -8,10 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { ArrowUp, Bot, User, Database, Settings, Trash2, Upload } from "lucide-react"
+import { ArrowUp, Bot, User, Database, Settings, Trash2, Upload, AlertCircle } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 // Add these interfaces at the top
 interface ModelConfig {
@@ -31,6 +32,7 @@ export default function ChatPage() {
   const [initialMessages, setInitialMessages] = useState<any[] | undefined>(undefined)
   const [selectedModel, setSelectedModel] = useState<string>("")
   const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
+  const [providers, setProviders] = useState<Record<string, ProviderConfig> | null>(null)
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -53,12 +55,14 @@ export default function ChatPage() {
         setSelectedModel(savedSelectedModel)
       }
 
-      // Load available models
+      // Load available models and providers
       if (savedProviders) {
         try {
-          const providers: Record<string, ProviderConfig> = JSON.parse(savedProviders)
+          const parsedProviders: Record<string, ProviderConfig> = JSON.parse(savedProviders)
+          setProviders(parsedProviders)
+
           const models: ModelConfig[] = []
-          Object.values(providers).forEach((provider) => {
+          Object.values(parsedProviders).forEach((provider) => {
             if (provider.apiKey?.trim()) {
               models.push(...provider.models)
             }
@@ -71,11 +75,12 @@ export default function ChatPage() {
     }
   }, [])
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages, error } = useChat({
     initialMessages: initialMessages,
     body: {
       selectedModel: selectedModel,
       uploadedCsvData: typeof window !== "undefined" ? localStorage.getItem("uploadedCsvData") : null,
+      providers: providers,
     },
   })
 
@@ -94,6 +99,9 @@ export default function ChatPage() {
       localStorage.setItem("selectedModel", modelId)
     }
   }
+
+  // Check if we have the necessary configuration
+  const hasValidConfiguration = availableModels.length > 0 && selectedModel && providers
 
   // Update the header section to include model selector and clear button
   const headerSection = (
@@ -134,14 +142,26 @@ export default function ChatPage() {
           </Link>
         </div>
       </div>
+
+      {/* Configuration warnings */}
       {availableModels.length === 0 && (
-        <div className="text-sm text-muted-foreground">
-          No models configured.{" "}
-          <Link href="/settings" className="underline">
-            Configure API keys
-          </Link>{" "}
-          to enable AI chat.
-        </div>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            No models configured.{" "}
+            <Link href="/settings" className="underline font-medium">
+              Configure API keys
+            </Link>{" "}
+            to enable AI chat.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {availableModels.length > 0 && !selectedModel && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Please select a model from the dropdown above to start chatting.</AlertDescription>
+        </Alert>
       )}
     </CardHeader>
   )
@@ -164,6 +184,11 @@ export default function ChatPage() {
     e.preventDefault()
     if (!input.trim()) return
 
+    // Check if we have valid configuration before submitting
+    if (!hasValidConfiguration) {
+      return
+    }
+
     if (!isInitialized) {
       setIsInitialized(true)
     }
@@ -172,11 +197,11 @@ export default function ChatPage() {
   }
 
   const exampleQuestions = [
-    "How many influencers are in the dataset?",
-    "Who are the top 5 influencers by follower count?",
-    "What's the average engagement rate across all influencers?",
-    "Show me verified influencers with over 1 million followers",
-    "Which influencers have the highest engagement rates?",
+    "How many entries are in the dataset?",
+    "What are the column names in this data?",
+    "Show me a summary of the data",
+    "What are some interesting patterns in this dataset?",
+    "Can you analyze the key metrics?",
   ]
 
   return (
@@ -187,10 +212,8 @@ export default function ChatPage() {
 
       <div className="container mx-auto w-full h-full p-4 flex flex-col">
         <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold mb-2">Influencer Data Chat Assistant</h1>
-          <p className="text-muted-foreground">
-            Ask questions about the influencer dataset and get AI-powered insights
-          </p>
+          <h1 className="text-3xl font-bold mb-2">Data Chat Assistant</h1>
+          <p className="text-muted-foreground">Ask questions about your dataset and get AI-powered insights</p>
         </div>
 
         <Card className="flex-1 flex flex-col border-none shadow-none overflow-hidden">
@@ -199,11 +222,11 @@ export default function ChatPage() {
           <CardContent className="flex-1 flex flex-col p-0 relative overflow-hidden">
             <div className="flex-1 overflow-hidden">
               <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
-                {messages.length === 0 && !isInitialized && (
+                {messages.length === 0 && !isInitialized && hasValidConfiguration && (
                   <div className="space-y-4">
                     <div className="text-center text-muted-foreground mb-6">
                       <Bot className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>Start by asking a question about the influencer data!</p>
+                      <p>Start by asking a question about your data!</p>
                     </div>
 
                     <div className="space-y-2">
@@ -272,6 +295,16 @@ export default function ChatPage() {
                     </div>
                   ))}
 
+                  {/* Error display */}
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        {error.message || "An error occurred while processing your request."}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   {isLoading && (
                     <div className="flex gap-3 justify-start">
                       <div className="flex gap-3 max-w-[80%]">
@@ -301,8 +334,12 @@ export default function ChatPage() {
                   <Textarea
                     value={input}
                     onChange={handleInputChange}
-                    placeholder="Ask about influencers, engagement rates, follower counts..."
-                    disabled={isLoading}
+                    placeholder={
+                      hasValidConfiguration
+                        ? "Ask about your data..."
+                        : "Please configure API keys and select a model first"
+                    }
+                    disabled={isLoading || !hasValidConfiguration}
                     className="w-full min-h-[60px] max-h-[200px] resize-none border-0 bg-transparent px-4 py-3 pr-12 placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus:border-0 focus-visible:outline-none focus-visible:ring-0 focus:!outline-none focus:!ring-0 focus:!border-none"
                     style={{
                       fontSize: "18px",
@@ -326,7 +363,7 @@ export default function ChatPage() {
                   />
                   <Button
                     type="submit"
-                    disabled={isLoading || !input.trim()}
+                    disabled={isLoading || !input.trim() || !hasValidConfiguration}
                     size="sm"
                     className="absolute right-2 bottom-2 h-8 w-8 rounded-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed p-0"
                   >

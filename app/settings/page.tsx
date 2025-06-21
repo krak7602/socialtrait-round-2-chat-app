@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { ArrowLeft, Save, Eye, EyeOff } from "lucide-react"
+import { ArrowLeft, Save, Eye, EyeOff, AlertCircle, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface ModelConfig {
   id: string
@@ -51,6 +52,12 @@ const AVAILABLE_PROVIDERS: Record<string, ProviderConfig> = {
       { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku", provider: "anthropic" },
     ],
   },
+}
+
+const API_KEY_LINKS = {
+  openai: "https://platform.openai.com/api-keys",
+  google: "https://aistudio.google.com/app/apikey",
+  anthropic: "https://console.anthropic.com/settings/keys",
 }
 
 export default function SettingsPage() {
@@ -134,6 +141,16 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6">
+          {/* Important Notice */}
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Important:</strong> You need to provide your own API keys to use the AI models. Your API keys are
+              stored locally in your browser and are never sent to our servers except when making API calls to the
+              respective providers.
+            </AlertDescription>
+          </Alert>
+
           {/* API Keys Configuration */}
           <Card>
             <CardHeader>
@@ -141,8 +158,20 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {Object.entries(providers).map(([providerId, provider]) => (
-                <div key={providerId} className="space-y-2">
-                  <Label htmlFor={`${providerId}-key`}>{provider.name} API Key</Label>
+                <div key={providerId} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={`${providerId}-key`} className="text-base font-medium">
+                      {provider.name} API Key
+                    </Label>
+                    <Link
+                      href={API_KEY_LINKS[providerId as keyof typeof API_KEY_LINKS]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    >
+                      Get API Key <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </div>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Input
@@ -166,6 +195,11 @@ export default function SettingsPage() {
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Available models: {provider.models.map((m) => m.name).join(", ")}
+                    {provider.apiKey.trim() ? (
+                      <span className="text-green-600 ml-2">✓ Configured</span>
+                    ) : (
+                      <span className="text-orange-600 ml-2">⚠ API key required</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -213,6 +247,59 @@ export default function SettingsPage() {
               Save Settings
             </Button>
           </div>
+
+          {/* Instructions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>How to Get API Keys</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">OpenAI:</h4>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  <li>
+                    Visit{" "}
+                    <Link href="https://platform.openai.com/api-keys" target="_blank" className="underline">
+                      platform.openai.com/api-keys
+                    </Link>
+                  </li>
+                  <li>Sign in to your OpenAI account</li>
+                  <li>Click "Create new secret key"</li>
+                  <li>Copy the key and paste it above</li>
+                </ol>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Google (Gemini):</h4>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  <li>
+                    Visit{" "}
+                    <Link href="https://aistudio.google.com/app/apikey" target="_blank" className="underline">
+                      aistudio.google.com/app/apikey
+                    </Link>
+                  </li>
+                  <li>Sign in with your Google account</li>
+                  <li>Click "Create API key"</li>
+                  <li>Copy the key and paste it above</li>
+                </ol>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Anthropic (Claude):</h4>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  <li>
+                    Visit{" "}
+                    <Link href="https://console.anthropic.com/settings/keys" target="_blank" className="underline">
+                      console.anthropic.com/settings/keys
+                    </Link>
+                  </li>
+                  <li>Sign in to your Anthropic account</li>
+                  <li>Click "Create Key"</li>
+                  <li>Copy the key and paste it above</li>
+                </ol>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

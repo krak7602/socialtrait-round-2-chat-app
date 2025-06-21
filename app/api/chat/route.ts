@@ -73,53 +73,46 @@ The complete dataset contains ${data.length} entries with the columns listed abo
 }
 
 function getModelInstance(modelId: string, providers: any) {
-  // Extract provider from model ID
+  // Extract provider from model ID and get API key
   if (modelId.startsWith("gpt-")) {
-    const apiKey = providers?.openai?.apiKey || process.env.OPENAI_API_KEY
-    if (!apiKey) throw new Error("OpenAI API key not configured")
+    const apiKey = providers?.openai?.apiKey
+    if (!apiKey) throw new Error("OpenAI API key not provided. Please configure it in settings.")
     return openai(modelId, { apiKey })
   } else if (modelId.startsWith("gemini-") || modelId.includes("gemini")) {
-    const apiKey = providers?.google?.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY
-    if (!apiKey) throw new Error("Google API key not configured")
+    const apiKey = providers?.google?.apiKey
+    if (!apiKey) throw new Error("Google API key not provided. Please configure it in settings.")
     return google(modelId, { apiKey })
   } else if (modelId.startsWith("claude-")) {
-    const apiKey = providers?.anthropic?.apiKey || process.env.ANTHROPIC_API_KEY
-    if (!apiKey) throw new Error("Anthropic API key not configured")
+    const apiKey = providers?.anthropic?.apiKey
+    if (!apiKey) throw new Error("Anthropic API key not provided. Please configure it in settings.")
     return anthropic(modelId, { apiKey })
   } else {
-    // Default to OpenAI GPT-4o
-    const apiKey = providers?.openai?.apiKey || process.env.OPENAI_API_KEY
-    if (!apiKey) throw new Error("No API key configured")
-    return openai("gpt-4o", { apiKey })
+    throw new Error("Invalid model selected. Please select a valid model from the settings.")
   }
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { messages, selectedModel, uploadedCsvData } = body
+    const { messages, selectedModel, uploadedCsvData, providers } = body
 
     if (!messages || !Array.isArray(messages)) {
       return new Response("Invalid request: messages array required", { status: 400 })
     }
 
-    // Get providers from request headers or use environment variables
-    const providersHeader = req.headers.get("x-ai-providers")
-    let providers = null
+    if (!selectedModel) {
+      return new Response("No model selected. Please select a model in the chat interface.", { status: 400 })
+    }
 
-    if (providersHeader) {
-      try {
-        providers = JSON.parse(providersHeader)
-      } catch (e) {
-        console.error("Failed to parse providers header:", e)
-      }
+    if (!providers) {
+      return new Response("No API providers configured. Please configure API keys in settings.", { status: 400 })
     }
 
     const data = await getInfluencerData(uploadedCsvData)
     const systemPrompt = createSystemPrompt(data, !!uploadedCsvData)
 
     // Get the appropriate model instance
-    const model = getModelInstance(selectedModel || "gpt-4o", providers)
+    const model = getModelInstance(selectedModel, providers)
 
     const result = streamText({
       model,
@@ -142,6 +135,10 @@ export async function POST(req: Request) {
     }
 
     if (error instanceof Error && error.message.includes("CSV")) {
+      return new Response(error.message, { status: 400 })
+    }
+
+    if (error instanceof Error && error.message.includes("model")) {
       return new Response(error.message, { status: 400 })
     }
 
