@@ -1,43 +1,25 @@
 import { streamText } from "ai"
-import { parseCSV, type InfluencerData } from "@/lib/csv-parser"
-import { readFile } from "fs/promises"
-import { join } from "path"
+import { parseCSV } from "@/lib/csv-parser"
 import { openai } from "@ai-sdk/openai"
 import { google } from "@ai-sdk/google"
 import { anthropic } from "@ai-sdk/anthropic"
 
 export const maxDuration = 30
 
-let cachedInfluencerData: InfluencerData[] | null = null
-
-async function getInfluencerData(uploadedCsvData?: string): Promise<any[]> {
-  // If uploaded CSV data is provided, use it
-  if (uploadedCsvData) {
-    try {
-      return parseCSV(uploadedCsvData)
-    } catch (error) {
-      console.error("Error parsing uploaded CSV:", error)
-      throw new Error("Failed to parse uploaded CSV data")
-    }
-  }
-
-  // Otherwise, use cached default data or load it
-  if (cachedInfluencerData) {
-    return cachedInfluencerData
+async function getUploadedData(uploadedCsvData?: string): Promise<any[]> {
+  if (!uploadedCsvData) {
+    throw new Error("No dataset uploaded. Please upload a CSV file to analyze.")
   }
 
   try {
-    const filePath = join(process.cwd(), "public", "influencer-list-st.csv")
-    const csvText = await readFile(filePath, "utf-8")
-    cachedInfluencerData = parseCSV(csvText)
-    return cachedInfluencerData
+    return parseCSV(uploadedCsvData)
   } catch (error) {
-    console.error("Error loading influencer data:", error)
-    return []
+    console.error("Error parsing uploaded CSV:", error)
+    throw new Error("Failed to parse uploaded CSV data. Please check your file format.")
   }
 }
 
-function createSystemPrompt(data: any[], isCustomData = false): string {
+function createSystemPrompt(data: any[]): string {
   if (data.length === 0) {
     return "You are an AI assistant, but no data is currently available to analyze."
   }
@@ -51,9 +33,7 @@ function createSystemPrompt(data: any[], isCustomData = false): string {
     .map((row) => headers.map((header) => `${header}: ${row[header] || "N/A"}`).join(", "))
     .join("\n")
 
-  const datasetType = isCustomData ? "uploaded dataset" : "influencer dataset"
-
-  return `You are an AI assistant that helps users analyze and query data from their ${datasetType}. You have access to a dataset containing ${data.length} entries.
+  return `You are an AI assistant that helps users analyze and query data from their uploaded dataset. You have access to a dataset containing ${data.length} entries.
 
 DATASET STRUCTURE:
 Available columns: ${headers.join(", ")}
@@ -62,14 +42,15 @@ SAMPLE DATA (first 10 entries):
 ${dataPreview}
 
 INSTRUCTIONS:
-1. Answer questions related to this specific dataset
+1. Answer questions related to this specific uploaded dataset
 2. Provide data-driven insights and analysis
 3. You can perform calculations, comparisons, and provide summaries
 4. Be helpful and informative about the data patterns and trends
 5. If asked about data not present in the dataset, politely explain what data is available
 6. Present your answers in a clear, easy-to-understand format
+7. Focus on the user's specific data and provide relevant insights
 
-The complete dataset contains ${data.length} entries with the columns listed above. You can analyze any aspect of this data to help the user understand patterns, trends, and insights.`
+The complete dataset contains ${data.length} entries with the columns listed above. You can analyze any aspect of this data to help the user understand patterns, trends, and insights from their uploaded information.`
 }
 
 function getModelInstance(modelId: string, providers: any) {
@@ -108,8 +89,12 @@ export async function POST(req: Request) {
       return new Response("No API providers configured. Please configure API keys in settings.", { status: 400 })
     }
 
-    const data = await getInfluencerData(uploadedCsvData)
-    const systemPrompt = createSystemPrompt(data, !!uploadedCsvData)
+    if (!uploadedCsvData) {
+      return new Response("No dataset uploaded. Please upload a CSV file to analyze.", { status: 400 })
+    }
+
+    const data = await getUploadedData(uploadedCsvData)
+    const systemPrompt = createSystemPrompt(data)
 
     // Get the appropriate model instance
     const model = getModelInstance(selectedModel, providers)
@@ -134,7 +119,10 @@ export async function POST(req: Request) {
       return new Response(error.message, { status: 401 })
     }
 
-    if (error instanceof Error && error.message.includes("CSV")) {
+    if (
+      (error instanceof Error && error.message.includes("dataset")) ||
+      (error instanceof Error && error.message.includes("CSV"))
+    ) {
       return new Response(error.message, { status: 400 })
     }
 

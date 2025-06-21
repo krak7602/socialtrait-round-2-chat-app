@@ -4,10 +4,11 @@ import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { ArrowLeft, Upload, FileText, Trash2, Database } from "lucide-react"
+import { ArrowLeft, Upload, FileText, Trash2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { useDropzone } from "react-dropzone"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function UploadPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -18,6 +19,7 @@ export default function UploadPage() {
     const file = acceptedFiles[0]
     if (file && file.type === "text/csv") {
       setUploadedFile(file)
+      setIsProcessing(true)
 
       // Read the file content
       const reader = new FileReader()
@@ -29,7 +31,12 @@ export default function UploadPage() {
         localStorage.setItem("uploadedCsvData", content)
         localStorage.setItem("uploadedCsvName", file.name)
 
+        setIsProcessing(false)
         toast.success("CSV file uploaded successfully!")
+      }
+      reader.onerror = () => {
+        setIsProcessing(false)
+        toast.error("Failed to read the file")
       }
       reader.readAsText(file)
     } else {
@@ -51,12 +58,6 @@ export default function UploadPage() {
     localStorage.removeItem("uploadedCsvData")
     localStorage.removeItem("uploadedCsvName")
     toast.success("Uploaded file cleared")
-  }
-
-  const useDefaultData = () => {
-    localStorage.removeItem("uploadedCsvData")
-    localStorage.removeItem("uploadedCsvName")
-    toast.success("Switched to default influencer dataset")
   }
 
   // Load existing uploaded file on component mount
@@ -87,10 +88,19 @@ export default function UploadPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold">Upload Your Data</h1>
+          <h1 className="text-3xl font-bold">Upload Your Dataset</h1>
         </div>
 
         <div className="space-y-6">
+          {/* Important Notice */}
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Dataset Required:</strong> You must upload a CSV file to use the chat feature. The AI will analyze
+              and answer questions about your specific data.
+            </AlertDescription>
+          </Alert>
+
           {/* Upload Area */}
           <Card>
             <CardHeader>
@@ -124,33 +134,27 @@ export default function UploadPage() {
             </CardHeader>
             <CardContent>
               {uploadedFile ? (
-                <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
                   <div className="flex items-center gap-3">
-                    <FileText className="h-8 w-8 text-blue-500" />
+                    <FileText className="h-8 w-8 text-green-600" />
                     <div>
                       <p className="font-medium">{uploadedFile.name}</p>
-                      <p className="text-sm text-muted-foreground">Custom uploaded dataset</p>
+                      <p className="text-sm text-muted-foreground">
+                        Ready for analysis • {csvData ? csvData.split("\n").length - 1 : 0} rows
+                      </p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={useDefaultData}>
-                      Use Default Data
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={clearUploadedFile}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button variant="outline" size="sm" onClick={clearUploadedFile}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Database className="h-8 w-8 text-green-500" />
-                    <div>
-                      <p className="font-medium">Default Influencer Dataset</p>
-                      <p className="text-sm text-muted-foreground">Built-in influencer data with 100+ entries</p>
-                    </div>
+                <div className="flex items-center justify-center p-8 border rounded-lg border-dashed border-muted-foreground/25">
+                  <div className="text-center">
+                    <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="font-medium text-muted-foreground">No dataset uploaded</p>
+                    <p className="text-sm text-muted-foreground">Upload a CSV file to get started</p>
                   </div>
-                  <div className="text-sm text-muted-foreground">Currently active</div>
                 </div>
               )}
             </CardContent>
@@ -169,25 +173,43 @@ export default function UploadPage() {
                   <li>Each subsequent row represents one data entry</li>
                   <li>Use commas to separate values</li>
                   <li>Enclose text containing commas in quotes</li>
+                  <li>Ensure consistent data types within columns</li>
                 </ul>
               </div>
 
               <div>
                 <h4 className="font-medium mb-2">Example:</h4>
                 <pre className="bg-muted p-3 rounded text-sm overflow-x-auto">
-                  {`Name,Age,City,Occupation
-"John Doe",30,"New York, NY",Developer
-Jane Smith,25,Boston,Designer`}
+                  {`Name,Age,City,Occupation,Salary
+"John Doe",30,"New York, NY",Developer,75000
+Jane Smith,25,Boston,Designer,65000
+Mike Johnson,35,Chicago,Manager,85000`}
                 </pre>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Tips for Better Analysis:</h4>
+                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                  <li>Use descriptive column headers</li>
+                  <li>Include numeric data for calculations and comparisons</li>
+                  <li>Keep data clean and consistent</li>
+                  <li>Remove empty rows and columns</li>
+                </ul>
               </div>
             </CardContent>
           </Card>
 
           {/* Action Buttons */}
           <div className="flex justify-center gap-4">
-            <Link href="/chat">
-              <Button size="lg">Start Chatting with Data</Button>
-            </Link>
+            {uploadedFile ? (
+              <Link href="/chat">
+                <Button size="lg">Start Analyzing Your Data</Button>
+              </Link>
+            ) : (
+              <Button size="lg" disabled>
+                Upload Dataset First
+              </Button>
+            )}
           </div>
         </div>
       </div>
